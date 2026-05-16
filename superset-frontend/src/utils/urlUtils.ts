@@ -196,7 +196,7 @@ async function resolvePermalinkUrl(
       if (typeof resolvedUrl === 'string' && resolvedUrl.length > 0) {
         return { key, url: resolvedUrl };
       }
-    } catch (error) {
+    } catch {
       // Silently fall back to default URL if Switchboard call fails
       // (e.g., if not in embedded context or callback throws)
     }

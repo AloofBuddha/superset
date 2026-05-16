@@ -98,7 +98,7 @@ export const fetchPaginatedData = async ({
       ...firstPageResults,
       ...remainingResults.flatMap(res => res.results),
     ]);
-  } catch (err) {
+  } catch {
     addDangerToast(t(errorMessage));
   } finally {
     setLoadingState((prev: boolean | Record<string, boolean>) => {
