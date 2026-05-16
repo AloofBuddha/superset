@@ -19,9 +19,6 @@
 import React from 'react';
 import { fireEvent, render } from 'spec/helpers/testing-library';
 
-import BackgroundStyleDropdown from 'src/dashboard/components/menu/BackgroundStyleDropdown';
-import IconButton from 'src/dashboard/components/IconButton';
-
 import { getMockStore } from 'spec/fixtures/mockStore';
 import { dashboardLayout as mockLayout } from 'spec/fixtures/mockDashboardLayout';
 import { initialState } from 'src/SqlLab/fixtures';
@@ -66,8 +63,62 @@ jest.mock(
 jest.mock(
   'src/dashboard/components/menu/WithPopoverMenu',
   () =>
-    ({ children }: { children: React.ReactNode }) => (
-      <div data-test="mock-with-popover-menu">{children}</div>
+    ({
+      children,
+      menuItems,
+      isFocused,
+      editMode,
+    }: {
+      children: React.ReactNode;
+      menuItems?: React.ReactNode[];
+      isFocused?: boolean;
+      editMode?: boolean;
+    }) => (
+      <div data-test="mock-with-popover-menu">
+        {children}
+        {editMode && isFocused && menuItems}
+      </div>
+    ),
+);
+jest.mock(
+  'src/dashboard/components/menu/BackgroundStyleDropdown',
+  () =>
+    ({ id }: { id: string }) => (
+      <div data-test="mock-background-style-dropdown" data-id={id} />
+    ),
+);
+jest.mock(
+  'src/dashboard/components/resizable/ResizableContainer',
+  () =>
+    ({
+      children,
+      adjustableWidth,
+      adjustableHeight,
+      widthStep,
+      widthMultiple,
+      minWidthMultiple,
+      maxWidthMultiple,
+    }: {
+      children: React.ReactNode;
+      adjustableWidth: boolean;
+      adjustableHeight: boolean;
+      widthStep: number;
+      widthMultiple: number;
+      minWidthMultiple: number;
+      maxWidthMultiple: number;
+    }) => (
+      <div
+        className="resizable-container"
+        data-test="mock-resizable-container"
+        data-adjustable-width={String(adjustableWidth)}
+        data-adjustable-height={String(adjustableHeight)}
+        data-width-step={String(widthStep)}
+        data-width-multiple={String(widthMultiple)}
+        data-min-width-multiple={String(minWidthMultiple)}
+        data-max-width-multiple={String(maxWidthMultiple)}
+      >
+        {children}
+      </div>
     ),
 );
 jest.mock(
@@ -176,21 +227,23 @@ test('should render a DeleteComponentButton in editMode', () => {
   expect(getByTestId('mock-delete-component-button')).toBeInTheDocument();
 });
 
-/* oxlint-disable-next-line jest/no-disabled-tests */
-test.skip('should render a BackgroundStyleDropdown when focused', () => {
-  let wrapper: ReturnType<typeof setup> = setup({
+test('should render a BackgroundStyleDropdown when focused', () => {
+  const { queryByTestId, getAllByRole } = setup({
     component: columnWithoutChildren,
+    editMode: true,
   });
-  expect((wrapper as any).find(BackgroundStyleDropdown)).toBeFalsy();
+  expect(
+    queryByTestId('mock-background-style-dropdown'),
+  ).not.toBeInTheDocument();
 
-  // we cannot set props on the Row because of the WithDragDropContext wrapper
-  wrapper = setup({ component: columnWithoutChildren, editMode: true });
-  (wrapper as any)
-    .find(IconButton)
-    .at(1) // first one is delete button
-    .simulate('click');
+  // click the settings IconButton to focus the column
+  const buttons = getAllByRole('button');
+  const settingsButton = buttons.find(
+    btn => btn.getAttribute('data-test') !== 'mock-delete-component-button',
+  )!;
+  fireEvent.click(settingsButton);
 
-  expect((wrapper as any).find(BackgroundStyleDropdown)).toBeTruthy();
+  expect(queryByTestId('mock-background-style-dropdown')).toBeInTheDocument();
 });
 
 test('should call deleteComponent when deleted', () => {
@@ -207,23 +260,26 @@ test('should pass its own width as availableColumnCount to children', () => {
   );
 });
 
-/* oxlint-disable-next-line jest/no-disabled-tests */
-test.skip('should pass appropriate dimensions to ResizableContainer', () => {
-  const { container } = setup({ component: columnWithoutChildren });
+test('should pass appropriate dimensions to ResizableContainer', () => {
+  const { getByTestId } = setup({ component: columnWithoutChildren });
   const columnWidth = columnWithoutChildren.meta.width;
+  const resizable = getByTestId('mock-resizable-container');
 
-  expect(container.querySelector('.resizable-container')).toEqual({
-    columnWidth,
-  });
-  // const resizableProps = wrapper.find(ResizableContainer).props();
-  // expect(resizableProps.adjustableWidth).toBe(true);
-  // expect(resizableProps.adjustableHeight).toBe(false);
-  // expect(resizableProps.widthStep).toBe(props.columnWidth);
-  // expect(resizableProps.widthMultiple).toBe(columnWidth);
-  // expect(resizableProps.minWidthMultiple).toBe(props.minColumnWidth);
-  // expect(resizableProps.maxWidthMultiple).toBe(
-  //   props.availableColumnCount + columnWidth,
-  // );
+  expect(resizable).toHaveAttribute('data-adjustable-width', 'true');
+  expect(resizable).toHaveAttribute('data-adjustable-height', 'false');
+  expect(resizable).toHaveAttribute(
+    'data-width-step',
+    String(props.columnWidth),
+  );
+  expect(resizable).toHaveAttribute('data-width-multiple', String(columnWidth));
+  expect(resizable).toHaveAttribute(
+    'data-min-width-multiple',
+    String(props.minColumnWidth),
+  );
+  expect(resizable).toHaveAttribute(
+    'data-max-width-multiple',
+    String(props.availableColumnCount + columnWidth),
+  );
 });
 
 test('should render between-items Droppables for each child in editMode', () => {
