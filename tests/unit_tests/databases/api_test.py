@@ -345,8 +345,8 @@ def test_database_connection(
     }
 
 
-@pytest.mark.skip(reason="Works locally but fails on CI")
 def test_update_with_password_mask(
+    mocker: MockerFixture,
     app: Any,
     session: Session,
     client: Any,
@@ -363,6 +363,14 @@ def test_update_with_password_mask(
     # create table for databases
     Database.metadata.create_all(session.get_bind())  # pylint: disable=no-member
 
+    # The PUT endpoint invokes SyncPermissionsCommand, which validates that a
+    # user exists in the session and tries to ping the database.  Neither is
+    # relevant to what this test checks (password-mask round-tripping), so we
+    # mock the command away to keep the test isolated and deterministic.
+    mocker.patch(
+        "superset.commands.database.update.SyncPermissionsCommand.run",
+    )
+
     database = Database(
         database_name="my_database",
         sqlalchemy_uri="gsheets://",
@@ -378,7 +386,7 @@ def test_update_with_password_mask(
     db.session.add(database)
     db.session.commit()
 
-    client.put(
+    response = client.put(
         "/api/v1/database/1",
         json={
             "encrypted_extra": json.dumps(
@@ -391,6 +399,8 @@ def test_update_with_password_mask(
             ),
         },
     )
+    assert response.status_code == 200
+
     database = db.session.query(Database).one()
     assert (
         database.encrypted_extra
