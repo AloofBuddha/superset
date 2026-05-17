@@ -63,7 +63,7 @@ const copyTextToClipboard = (getText: () => Promise<string>) =>
               if (!document.execCommand('copy')) {
                 reject();
               }
-            } catch (err) {
+            } catch {
               reject();
             }
 

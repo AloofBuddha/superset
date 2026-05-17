@@ -32,7 +32,7 @@ export function safeStringify(object: any): string {
         try {
           // Quick deep copy to duplicate if this is a repeat rather than a circle.
           return JSON.parse(JSON.stringify(value));
-        } catch (err) {
+        } catch {
           // Discard key if value cannot be duplicated.
           return; // eslint-disable-line consistent-return
         }

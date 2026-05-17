@@ -307,7 +307,7 @@ test('resolves ag-cell min-height to row pixel height when content fits within i
   // Cell min-height was resolved to the row's pixel height during capture
   expect(capturedMinHeight).toBe('32px');
   // Cell min-height was restored after capture
-  expect(cell.style.minHeight).toBe('');
+  expect(cell).toHaveStyle({ minHeight: '' });
 
   cleanup();
   jest.useRealTimers();
@@ -347,7 +347,7 @@ test('uses cell scrollHeight when it exceeds row offsetHeight (stale row heights
 
   // Uses the larger content height, not the stale row height
   expect(capturedMinHeight).toBe('120px');
-  expect(cell.style.minHeight).toBe('');
+  expect(cell).toHaveStyle({ minHeight: '' });
 
   cleanup();
   jest.useRealTimers();
@@ -507,8 +507,8 @@ test('restores ag-cell styles after capture even when toJpeg throws', async () =
   await exportPromise;
 
   // Styles restored to original values despite capture error
-  expect(cell.style.minHeight).toBe('100%');
-  expect(cell.style.overflow).toBe('visible');
+  expect(cell).toHaveStyle({ minHeight: '100%' });
+  expect(cell).toHaveStyle({ overflow: 'visible' });
 
   cleanup();
   jest.useRealTimers();
