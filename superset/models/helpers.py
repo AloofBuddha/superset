@@ -1228,6 +1228,49 @@ class ExploreMixin:  # pylint: disable=too-many-public-methods
         """
         return self.query(qry)
 
+    def _get_timestamp_format(self, column: str | None) -> str | None:
+        if not hasattr(self, "get_column"):
+            return None
+        column_obj = self.get_column(column)
+        if (
+            column_obj
+            and hasattr(column_obj, "python_date_format")
+            and (formatter := column_obj.python_date_format)
+        ):
+            return str(formatter)
+        return None
+
+    def _collect_dttm_labels(
+        self, query_object: QueryObject
+    ) -> tuple[tuple[str, ...], set[str]]:
+        """Return (all_dttm_labels, time_axis_labels) for *query_object*.
+
+        ``all_dttm_labels`` contains every temporal column referenced by the
+        query so that the dataset's HOURS OFFSET is applied to all of them.
+        ``time_axis_labels`` is the subset that should also receive
+        *time_shift*.
+        """
+        all_query_labels: list[str] = [
+            get_column_name(col) for col in (query_object.columns or [])
+        ]
+        if query_object.granularity:
+            all_query_labels.append(query_object.granularity)
+        # Deduplicate while preserving order
+        all_query_labels = list(dict.fromkeys(all_query_labels))
+
+        time_axis_labels = set(get_base_axis_labels(query_object.columns))
+        if query_object.granularity:
+            time_axis_labels.add(query_object.granularity)
+
+        labels = tuple(
+            label
+            for label in all_query_labels
+            if hasattr(self, "get_column")
+            and (col := self.get_column(label))
+            and (col.get("is_dttm") if isinstance(col, dict) else col.is_dttm)
+        )
+        return labels, time_axis_labels
+
     def normalize_df(self, df: pd.DataFrame, query_object: QueryObject) -> pd.DataFrame:
         """
         Normalize the dataframe by converting datetime columns and ensuring
@@ -1237,36 +1280,15 @@ class ExploreMixin:  # pylint: disable=too-many-public-methods
         :param query_object: The query object with metadata about columns
         :return: Normalized dataframe
         """
-
-        def _get_timestamp_format(column: str | None) -> str | None:
-            if not hasattr(self, "get_column"):
-                return None
-            column_obj = self.get_column(column)
-            if (
-                column_obj
-                and hasattr(column_obj, "python_date_format")
-                and (formatter := column_obj.python_date_format)
-            ):
-                return str(formatter)
-            return None
-
-        # Collect datetime columns
-        labels = tuple(
-            label
-            for label in [
-                *get_base_axis_labels(query_object.columns),
-                query_object.granularity,
-            ]
-            if hasattr(self, "get_column")
-            and (col := self.get_column(label))
-            and (col.get("is_dttm") if isinstance(col, dict) else col.is_dttm)
-        )
+        labels, time_axis_labels = self._collect_dttm_labels(query_object)
 
         dttm_cols = [
             DateColumn(
-                timestamp_format=_get_timestamp_format(label),
+                timestamp_format=self._get_timestamp_format(label),
                 offset=self.offset,
-                time_shift=query_object.time_shift,
+                time_shift=(
+                    query_object.time_shift if label in time_axis_labels else None
+                ),
                 col_label=label,
             )
             for label in labels
@@ -1276,7 +1298,9 @@ class ExploreMixin:  # pylint: disable=too-many-public-methods
         if DTTM_ALIAS in df:
             dttm_cols.append(
                 DateColumn.get_legacy_time_column(
-                    timestamp_format=_get_timestamp_format(query_object.granularity),
+                    timestamp_format=self._get_timestamp_format(
+                        query_object.granularity
+                    ),
                     offset=self.offset,
                     time_shift=query_object.time_shift,
                 )
