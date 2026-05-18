@@ -41,6 +41,64 @@ from superset.utils.decorators import transaction
 logger = logging.getLogger(__name__)
 
 
+def _remap_excluded(scope: dict[str, Any], old_to_new: dict[int, int]) -> None:
+    """Replace old chart IDs in a scope's ``excluded`` list with new IDs."""
+    excluded = scope.get("excluded", [])
+    if excluded and isinstance(excluded, list):
+        scope["excluded"] = [old_to_new[oid] for oid in excluded if oid in old_to_new]
+
+
+def _remap_chart_configuration(
+    chart_configuration: dict[str, Any], old_to_new: dict[int, int]
+) -> dict[str, Any]:
+    """Return *chart_configuration* with keys and internal IDs remapped."""
+    new_chart_configuration: dict[str, Any] = {}
+    for old_id_str, chart_config in chart_configuration.items():
+        try:
+            old_id_int = int(old_id_str)
+        except (TypeError, ValueError):
+            continue
+        new_id = old_to_new.get(old_id_int)
+        if new_id is None:
+            continue
+        if isinstance(chart_config, dict):
+            chart_config["id"] = new_id
+            scope = chart_config.get("crossFilters", {}).get("scope", {})
+            if isinstance(scope, dict):
+                _remap_excluded(scope, old_to_new)
+        new_chart_configuration[str(new_id)] = chart_config
+    return new_chart_configuration
+
+
+def update_filter_scoping(dashboard: Dashboard, old_to_new: dict[int, int]) -> None:
+    """Remap chart IDs in cross-filter scoping and default_filters."""
+    json_metadata = json.loads(dashboard.json_metadata)
+
+    if "default_filters" in json_metadata:
+        try:
+            default_filters = json.loads(json_metadata["default_filters"])
+            json_metadata["default_filters"] = json.dumps(
+                {
+                    str(old_to_new[int(old_id)]): value
+                    for old_id, value in default_filters.items()
+                    if int(old_id) in old_to_new
+                }
+            )
+        except (ValueError, TypeError):
+            pass
+
+    global_cfg = json_metadata.get("global_chart_configuration", {})
+    scope = global_cfg.get("scope", {})
+    _remap_excluded(scope, old_to_new)
+
+    if "chart_configuration" in json_metadata:
+        json_metadata["chart_configuration"] = _remap_chart_configuration(
+            json_metadata["chart_configuration"], old_to_new
+        )
+
+    dashboard.json_metadata = json.dumps(json_metadata)
+
+
 def import_chart(
     slc_to_import: Slice,
     slc_to_override: Optional[Slice],
@@ -154,6 +212,13 @@ def import_dashboard(  # noqa: C901
                         old_dataset_id,
                         old_dataset_id,
                     )
+            scope_excluded = native_filter.get("scope", {}).get("excluded", [])
+            if scope_excluded:
+                native_filter["scope"]["excluded"] = [
+                    old_to_new_slc_id_dict[old_id]
+                    for old_id in scope_excluded
+                    if old_id in old_to_new_slc_id_dict
+                ]
         dashboard.json_metadata = json.dumps(json_metadata)
 
     logger.info("Started import of the dashboard: %s", dashboard_to_import.to_json())
@@ -253,6 +318,7 @@ def import_dashboard(  # noqa: C901
         )
 
     alter_native_filters(dashboard_to_import)
+    update_filter_scoping(dashboard_to_import, old_to_new_slc_id_dict)
 
     if existing_dashboard:
         existing_dashboard.override(dashboard_to_import)
