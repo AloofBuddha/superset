@@ -162,21 +162,16 @@ def prune_log() -> None:
 
 
 @celery_app.task(name="prune_query", bind=True)
-def prune_query(
-    self: Task, retention_period_days: int | None = None, **kwargs: Any
-) -> None:
+def prune_query(self: Task, retention_period_days: int | None = None) -> None:
     stats_logger: BaseStatsLogger = current_app.config["STATS_LOGGER"]
     stats_logger.incr("prune_query")
 
-    # TODO: Deprecated: Remove support for passing retention period via options in 6.0
     if retention_period_days is None:
-        retention_period_days = prune_query.request.properties.get(
-            "retention_period_days"
-        )
         logger.warning(
-            "Your `prune_query` beat schedule uses `options` to pass the retention "
-            "period, please use `kwargs` instead."
+            "prune_query called without retention_period_days; "
+            "configure it via kwargs in your Celery beat schedule."
         )
+        return
 
     try:
         QueryPruneCommand(retention_period_days).run()
@@ -189,20 +184,16 @@ def prune_logs(
     self: Task,
     retention_period_days: int | None = None,
     max_rows_per_run: int | None = None,
-    **kwargs: Any,
 ) -> None:
     stats_logger: BaseStatsLogger = current_app.config["STATS_LOGGER"]
     stats_logger.incr("prune_logs")
 
-    # TODO: Deprecated: Remove support for passing retention period via options in 6.0
     if retention_period_days is None:
-        retention_period_days = prune_logs.request.properties.get(
-            "retention_period_days"
-        )
         logger.warning(
-            "Your `prune_logs` beat schedule uses `options` to pass the retention "
-            "period, please use `kwargs` instead."
+            "prune_logs called without retention_period_days; "
+            "configure it via kwargs in your Celery beat schedule."
         )
+        return
 
     try:
         LogPruneCommand(retention_period_days, max_rows_per_run).run()
@@ -215,20 +206,16 @@ def prune_tasks(
     self: Task,
     retention_period_days: int | None = None,
     max_rows_per_run: int | None = None,
-    **kwargs: Any,
 ) -> None:
     stats_logger: BaseStatsLogger = current_app.config["STATS_LOGGER"]
     stats_logger.incr("prune_tasks")
 
-    # TODO: Deprecated: Remove support for passing retention period via options in 6.0
     if retention_period_days is None:
-        retention_period_days = prune_tasks.request.properties.get(
-            "retention_period_days"
-        )
         logger.warning(
-            "Your `prune_tasks` beat schedule uses `options` to pass the "
-            "retention period, please use `kwargs` instead."
+            "prune_tasks called without retention_period_days; "
+            "configure it via kwargs in your Celery beat schedule."
         )
+        return
 
     try:
         TaskPruneCommand(retention_period_days, max_rows_per_run).run()

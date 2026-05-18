@@ -255,7 +255,6 @@ class ExplorableData(TypedDict, total=False):
         description: Human-readable description
         database: Database connection information
         default_endpoint: Default URL endpoint for this datasource
-        filter_select: Whether filter select is enabled (deprecated)
         filter_select_enabled: Whether filter select is enabled
         name: Display name of the datasource
         datasource_name: Name of the underlying table/query
@@ -301,7 +300,6 @@ class ExplorableData(TypedDict, total=False):
     database: dict[str, Any]
     parent: dict[str, Any]
     default_endpoint: str | None
-    filter_select: bool
     filter_select_enabled: bool
     name: str
     datasource_name: str

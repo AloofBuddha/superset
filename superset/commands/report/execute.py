@@ -70,7 +70,6 @@ from superset.reports.notifications.base import NotificationContent
 from superset.reports.notifications.exceptions import (
     NotificationError,
     NotificationParamException,
-    SlackV1NotificationError,
 )
 from superset.tasks.utils import get_executor
 from superset.utils import json
@@ -731,27 +730,24 @@ class BaseReportState:
         """
         notification_errors: list[SupersetError] = []
         for recipient in recipients:
-            notification = create_notification(recipient, notification_content)
             try:
-                try:
-                    if app.config["ALERT_REPORTS_NOTIFICATION_DRY_RUN"]:
-                        logger.info(
-                            "Would send notification for alert %s, to %s. "
-                            "ALERT_REPORTS_NOTIFICATION_DRY_RUN is enabled, "
-                            "set it to False to send notifications.",
-                            self._report_schedule.name,
-                            recipient.recipient_config_json,
-                        )
-                    else:
-                        notification.send()
-                except SlackV1NotificationError as ex:
-                    # The slack notification should be sent with the v2 api
+                if recipient.type == ReportRecipientType.SLACK:
                     logger.info(
-                        "Attempting to upgrade the report to Slackv2: %s", str(ex)
+                        "Migrating report Slack recipient to v2 for: %s",
+                        self._report_schedule.name,
                     )
                     self.update_report_schedule_slack_v2()
                     recipient.type = ReportRecipientType.SLACKV2
-                    notification = create_notification(recipient, notification_content)
+                notification = create_notification(recipient, notification_content)
+                if app.config["ALERT_REPORTS_NOTIFICATION_DRY_RUN"]:
+                    logger.info(
+                        "Would send notification for alert %s, to %s. "
+                        "ALERT_REPORTS_NOTIFICATION_DRY_RUN is enabled, "
+                        "set it to False to send notifications.",
+                        self._report_schedule.name,
+                        recipient.recipient_config_json,
+                    )
+                else:
                     notification.send()
             except (
                 UpdateFailedError,

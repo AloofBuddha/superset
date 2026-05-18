@@ -389,7 +389,6 @@ class SemanticView(AuditMixinNullable, Model):
             # UI features
             "verbose_map": {},
             "order_by_choices": [],
-            "filter_select": True,
             "filter_select_enabled": True,
             "sql": None,
             "select_star": None,

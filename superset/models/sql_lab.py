@@ -275,7 +275,7 @@ class Query(
             "time_grain_sqla": [
                 (g.duration, g.name) for g in self.database.grains() or []
             ],
-            "filter_select": True,
+            "filter_select_enabled": True,
             "name": self.tab_name,
             "columns": [cast(DatasetColumnData, o.data) for o in self.columns],
             "metrics": [],
@@ -499,7 +499,7 @@ class SavedQuery(
 
     @property
     def pop_tab_link(self) -> Markup:
-        return Markup(
+        return Markup(  # noqa: S704
             f"""
             <a href="/sqllab?savedQueryId={self.id}">
                 <i class="fa fa-link"></i>
