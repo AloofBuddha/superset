@@ -409,7 +409,9 @@ export function transformSeries(
         ? {
             opacity: opacity * areaOpacity,
           }
-        : undefined,
+        : forecastSeries.type === ForecastSeriesEnum.ForecastLower
+          ? { opacity: 0 }
+          : undefined,
     emphasis,
     showSymbol,
     symbol,
