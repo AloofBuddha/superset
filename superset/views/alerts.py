@@ -20,16 +20,16 @@ from flask_appbuilder.api import expose
 from flask_appbuilder.security.decorators import has_access
 
 from superset import is_feature_enabled
+from superset.constants import MODEL_VIEW_RW_METHOD_PERMISSION_MAP
 from superset.superset_typing import FlaskResponse
 
 from .base import BaseSupersetView
-
-# TODO: access control rules for this module
 
 
 class BaseAlertReportView(BaseSupersetView):
     route_base = "/report"
     class_permission_name = "ReportSchedule"
+    method_permission_name = MODEL_VIEW_RW_METHOD_PERMISSION_MAP
 
     @expose("/list/")
     @has_access
