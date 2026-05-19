@@ -2311,7 +2311,6 @@ export default function (config?) {
   };
 
   // rescale for height, width and margins
-  // TODO currently assumes chart is brushable, and destroys old brushes
   pc.resize = function () {
     // selection size
     pc.selection
@@ -2323,7 +2322,12 @@ export default function (config?) {
       'translate(' + __.margin.left + ',' + __.margin.top + ')',
     );
 
-    // FIXME: the current brush state should pass through
+    // Save the current brush state so it can be restored after resize
+    var savedExtents;
+    if (flags.brushable && pc.brushExtents) {
+      savedExtents = pc.brushExtents();
+    }
+
     if (flags.brushable) pc.brushReset();
 
     // scales
@@ -2333,6 +2337,11 @@ export default function (config?) {
     if (g) pc.createAxes();
     if (flags.brushable) pc.brushable();
     if (flags.reorderable) pc.reorderable();
+
+    // Restore saved brush extents after axes and brushes are recreated
+    if (savedExtents && pc.brushExtents) {
+      pc.brushExtents(savedExtents);
+    }
 
     events.resize.call(this, {
       width: __.width,
